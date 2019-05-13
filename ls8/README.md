@@ -61,7 +61,16 @@ but you'll have to implement those three above instructions first!
 ## Step 0: IMPORTANT: inventory what is here!
 
 * Make a list of files here.
+  *ls8.c
+  *cpu.c
+  *cpu.h
 * Write a short 3-10-word description of what each file does.
+  *ls8.c
+    *executes the cpu using the init load and run function
+  *cpu.c
+    * init function, initialize the cpu
+  *cpu.h
+    *header file for the cpu, contains the cpu struct.
 * Note what has been implemented, and what hasn't.
 * Read this whole file.
 * Skim the spec.

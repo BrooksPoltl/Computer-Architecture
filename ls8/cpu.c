@@ -15,20 +15,21 @@ void cpu_init(struct cpu *cpu)
   cpu->PC = 0;
   memset(cpu->registers, 0, sizeof(cpu->registers));
   memset(cpu->ram, 0, sizeof(cpu->ram));
+  
 }
 unsigned char cpu_ram_read(struct cpu *cpu, unsigned char MAR)
 {
   return cpu->ram[MAR];
 }
-void cpu_ram_write(struct cpu *cpu)
+void cpu_ram_write(struct cpu *cpu, int MAR, unsigned char value)
 {
-
+  return cpu->ram[MAR] = value;
 }
 void cpu_load(struct cpu *cpu,int argc, char *argv[])
 {
   FILE *fp;
   int index = 0;
-  char data[1000];
+  int address = 0;
   char line[256];
   if(!argv[1]){
     puts("ERROR: MISSING FILE TO RUN");
@@ -37,19 +38,16 @@ void cpu_load(struct cpu *cpu,int argc, char *argv[])
   fp = fopen(argv[1],"r");
   printf("Reading file %s...\n\n", argv[1]);
   if(fp!=NULL){
-    while(fgets(line,sizeof(line),fp)){
-      printf("%s\n",line);
-      for(int i = 0; i<sizeof(line)
+    while(fgets(line,sizeof(line),fp)!= NULL){
+      char *endptr;
+      unsigned char byte = strtoul(line, &endptr,2);
+      if(endptr == line){
+        continue;
+      }
+      cpu->ram[address++] = byte;
     }
   }
   fclose(fp);
-  int address = 0;
-  int length = 6;
-  // int data[length];
-  for (int i = 0; i < length; i++) {
-    cpu->ram[address++] = data[i];
-  }
-
   // TODO: Replace this with something less hard-coded
 }
 
@@ -59,8 +57,8 @@ void cpu_load(struct cpu *cpu,int argc, char *argv[])
 void alu(struct cpu *cpu, enum alu_op op, unsigned char regA, unsigned char regB)
 {
   switch (op) {
-    case ADD:
-      // TODO
+    case ALU_MUL:
+      cpu->registers[regA] *= cpu->registers[regB];
       break;
     // TODO: implement more ALU ops
   }
@@ -73,6 +71,8 @@ void cpu_run(struct cpu *cpu)
 {
   int running = 1;
   unsigned char command, operandA,operandB;
+  int stack[256];
+  int stack_pointer = 0;
   while (running) {
     command = cpu_ram_read(cpu, cpu->PC);
     operandA = cpu_ram_read(cpu, cpu->PC + 1);
@@ -81,16 +81,31 @@ void cpu_run(struct cpu *cpu)
     {
       case HLT:
         running = 0;
-        cpu->PC +=1;
         break;
       case LDI:
         cpu->registers[operandA] = operandB;
+        cpu->PC += 3;
         break;
       case PRN:
         printf("%d\n", cpu->registers[operandA]);
+        cpu->PC += 2;
+        break;
+      case MUL:
+        alu(cpu, ALU_MUL,operandA, operandB);
+        cpu->PC += 3;
+        break;
+      case PUSH:
+        stack_pointer -= 1;
+        stack[stack_pointer] = cpu->registers[operandA];
+        cpu->PC += 2;
+        break;
+      case POP:
+        cpu->registers[operandA] = stack[stack_pointer];
+        stack_pointer += 1;
+        cpu->PC += 2; 
         break;
     }
-    cpu->PC += 1;
+    
   }
 }
 

@@ -73,6 +73,8 @@ void cpu_run(struct cpu *cpu)
   unsigned char command, operandA,operandB;
   int stack[256];
   int stack_pointer = 0;
+  char return_addr;
+  unsigned char address;
   while (running) {
     command = cpu_ram_read(cpu, cpu->PC);
     operandA = cpu_ram_read(cpu, cpu->PC + 1);
@@ -103,6 +105,20 @@ void cpu_run(struct cpu *cpu)
         cpu->registers[operandA] = stack[stack_pointer];
         stack_pointer += 1;
         cpu->PC += 2; 
+        break;
+      case CALL:
+          cpu->registers[7]--;
+          cpu_ram_write(cpu, cpu->registers[7],cpu->PC + 2);
+          cpu->PC = cpu->registers[operandA];
+          break;
+      case RET:
+          address = cpu_ram_read(cpu, cpu->registers[7]);
+          cpu->registers[7]++;
+          cpu->PC = address;
+          break;
+      case ADD:
+        cpu->registers[operandA] += operandB;
+        cpu->PC += 3;
         break;
     }
     

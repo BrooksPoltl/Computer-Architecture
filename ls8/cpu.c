@@ -1,28 +1,53 @@
 #include "cpu.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-#define DATA_LEN 6
 
 /**
  * Load the binary bytes from a .ls8 source file into a RAM array
  */
-void cpu_load(struct cpu *cpu)
+/**
+ * Initialize a CPU struct
+ */
+void cpu_init(struct cpu *cpu)
 {
-  char data[DATA_LEN] = {
-    // From print8.ls8
-    0b10000010, // LDI R0,8
-    0b00000000,
-    0b00001000,
-    0b01000111, // PRN R0
-    0b00000000,
-    0b00000001  // HLT
-  };
-
+  // TODO: Initialize the PC and other special registers
+  cpu->PC = 0;
+  memset(cpu->registers, 0, sizeof(cpu->registers));
+  memset(cpu->ram, 0, sizeof(cpu->ram));
+  
+}
+unsigned char cpu_ram_read(struct cpu *cpu, unsigned char MAR)
+{
+  return cpu->ram[MAR];
+}
+void cpu_ram_write(struct cpu *cpu, int MAR, unsigned char value)
+{
+  return cpu->ram[MAR] = value;
+}
+void cpu_load(struct cpu *cpu,int argc, char *argv[])
+{
+  FILE *fp;
+  int index = 0;
   int address = 0;
-
-  for (int i = 0; i < DATA_LEN; i++) {
-    cpu->ram[address++] = data[i];
+  char line[256];
+  if(!argv[1]){
+    puts("ERROR: MISSING FILE TO RUN");
+    exit(1);
   }
-
+  fp = fopen(argv[1],"r");
+  printf("Reading file %s...\n\n", argv[1]);
+  if(fp!=NULL){
+    while(fgets(line,sizeof(line),fp)!= NULL){
+      char *endptr;
+      unsigned char byte = strtoul(line, &endptr,2);
+      if(endptr == line){
+        continue;
+      }
+      cpu->ram[address++] = byte;
+    }
+  }
+  fclose(fp);
   // TODO: Replace this with something less hard-coded
 }
 
@@ -33,9 +58,8 @@ void alu(struct cpu *cpu, enum alu_op op, unsigned char regA, unsigned char regB
 {
   switch (op) {
     case ALU_MUL:
-      // TODO
+      cpu->registers[regA] *= cpu->registers[regB];
       break;
-
     // TODO: implement more ALU ops
   }
 }
@@ -45,23 +69,59 @@ void alu(struct cpu *cpu, enum alu_op op, unsigned char regA, unsigned char regB
  */
 void cpu_run(struct cpu *cpu)
 {
-  int running = 1; // True until we get a HLT instruction
-
+  int running = 1;
+  unsigned char command, operandA,operandB;
+  int stack[256];
+  int stack_pointer = 0;
+  char return_addr;
+  unsigned char address;
   while (running) {
-    // TODO
-    // 1. Get the value of the current instruction (in address PC).
-    // 2. Figure out how many operands this next instruction requires
-    // 3. Get the appropriate value(s) of the operands following this instruction
-    // 4. switch() over it to decide on a course of action.
-    // 5. Do whatever the instruction should do according to the spec.
-    // 6. Move the PC to the next instruction.
+    command = cpu_ram_read(cpu, cpu->PC);
+    operandA = cpu_ram_read(cpu, cpu->PC + 1);
+    operandB = cpu_ram_read(cpu, cpu->PC + 2);
+    switch(command)
+    {
+      case HLT:
+        running = 0;
+        break;
+      case LDI:
+        cpu->registers[operandA] = operandB;
+        cpu->PC += 3;
+        break;
+      case PRN:
+        printf("%d\n", cpu->registers[operandA]);
+        cpu->PC += 2;
+        break;
+      case MUL:
+        alu(cpu, ALU_MUL,operandA, operandB);
+        cpu->PC += 3;
+        break;
+      case PUSH:
+        stack_pointer -= 1;
+        stack[stack_pointer] = cpu->registers[operandA];
+        cpu->PC += 2;
+        break;
+      case POP:
+        cpu->registers[operandA] = stack[stack_pointer];
+        stack_pointer += 1;
+        cpu->PC += 2; 
+        break;
+      case CALL:
+          cpu->registers[7]--;
+          cpu_ram_write(cpu, cpu->registers[7],cpu->PC + 2);
+          cpu->PC = cpu->registers[operandA];
+          break;
+      case RET:
+          address = cpu_ram_read(cpu, cpu->registers[7]);
+          cpu->registers[7]++;
+          cpu->PC = address;
+          break;
+      case ADD:
+        cpu->registers[operandA] += operandB;
+        cpu->PC += 3;
+        break;
+    }
+    
   }
 }
 
-/**
- * Initialize a CPU struct
- */
-void cpu_init(struct cpu *cpu)
-{
-  // TODO: Initialize the PC and other special registers
-}
